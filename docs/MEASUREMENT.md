@@ -3,7 +3,7 @@
 Every number in the README comes from this procedure, so it can be rerun.
 
 1. Fresh process per run. `cudaEvent` timing around `iters` back-to-back launches after one warm-up launch; report the mean. Default `iters=20`.
-2. Correctness first. Each stage's output is compared elementwise to cuBLAS on the same inputs; `max_rel_err` must be below 1e-3 or the row is marked WRONG and not counted.
+2. Correctness first. Each stage's output is compared to cuBLAS on the same inputs using relative Frobenius error `||C - Cref||_F / ||Cref||_F`; it must be below 1e-4 or the row is marked WRONG and not counted. Max absolute error is also reported. A per-element relative error was tried first and rejected: elements near zero turn ordinary fp32 summation-order differences into ratios near 1 (first T4 run showed an identical 6.9e-1 across all five kernels, which is the signature of a bad metric, not five bad kernels).
 3. Square fp32 problems at 1024, 2048, 4096. Stage 0 is skipped above 2048 because it takes minutes and tells us nothing new.
 4. Percent of cuBLAS is GFLOP/s of the stage divided by GFLOP/s of `cublasSgemm` at the same size on the same run. cuBLAS is the ceiling, not a competitor.
 5. Nsight Compute (`scripts/profile.sh`) captures, per stage at 2048: SM throughput, DRAM throughput, L1 and L2 bytes, achieved occupancy, long-scoreboard and MIO-throttle stall ratios, registers per thread, static smem per block, FFMA count. These are the numbers that explain *why* each stage moved.
