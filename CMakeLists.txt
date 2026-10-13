@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.18)
+project(cuda_gemm_study LANGUAGES CXX CUDA)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 17)
+if(NOT CMAKE_CUDA_ARCHITECTURES)
+  # T4=75, A10/A100=86/80, L4=89, H100=90. Override: -DCMAKE_CUDA_ARCHITECTURES=80
+  set(CMAKE_CUDA_ARCHITECTURES 75 80 86 89)
+endif()
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -lineinfo --expt-relaxed-constexpr")
+add_executable(gemm_bench src/main.cu src/kernels.cu)
+target_link_libraries(gemm_bench cublas)
