@@ -69,7 +69,9 @@ What the numbers say:
 | 3 reg tiled | 52.2 | 6.6 | 47.1 | 120 | 8 KB | 0.66 GB | 254,904 | 403,215 |
 | 4 vectorized | 54.3 | 6.4 | 25.0 | 143 | 8 KB | 0.57 GB | 176,441 | 29,074 |
 
-Raw per-stage CSVs are in `results/ncu/`. Reading the table against the timings:
+Raw per-stage CSVs are in `results/ncu/` (Nsight Compute 2025.3.1 on the same T4; captured from the Colab session output and committed verbatim). One free sanity check: `sm__sass_thread_inst_executed_op_ffma_pred_on.sum` is 8,589,934,592 for every stage, exactly 2048³, so all five kernels execute the same arithmetic and every gain below comes from how memory is moved.
+
+Reading the table against the timings:
 
 - **Stage 0 is latency-bound, not bandwidth-bound.** DRAM sits at 3.5 percent and the SM is 12 percent busy; the warps are parked on long-scoreboard stalls waiting for uncoalesced loads to return. Full occupancy buys nothing because every warp is waiting on the same thing.
 - **Stage 1's "80 percent SM throughput" is the load/store unit, not the FMA pipe.** `sm__throughput` reports the busiest sub-unit. Coalescing made the LSU the bottleneck at 10x the GFLOP/s, with DRAM now at 35 percent. The kernel is issue-bound on loads.
