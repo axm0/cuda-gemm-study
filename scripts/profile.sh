@@ -18,13 +18,13 @@ import csv,glob,sys
 size=sys.argv[1]
 want=["sm__throughput.avg.pct_of_peak_sustained_elapsed","dram__throughput.avg.pct_of_peak_sustained_elapsed","sm__warps_active.avg.pct_of_peak_sustained_active","launch__registers_per_thread","launch__shared_mem_per_block_static","lts__t_bytes.sum","smsp__average_warp_latency_issue_stalled_long_scoreboard.ratio","smsp__average_warp_latency_issue_stalled_mio_throttle.ratio"]
 short=["SM%","DRAM%","occ%","regs","smemB","L2bytes","lsb_stall","mio_stall"]
-print("stage,kernel,"+",".join(short))
+print(" | ".join(["stage","kernel"]+short))
 for s in range(5):
     try: rows=list(csv.DictReader(open(f"results/ncu/stage{s}_{size}.csv")))
     except FileNotFoundError: continue
     if not rows: continue
     k=rows[0]["Kernel Name"][:28]
     m={r["Metric Name"]:r["Metric Value"] for r in rows}
-    print(f"{s},{k},"+",".join(m.get(w,"?") for w in want))
+    print(" | ".join([str(s),k]+[m.get(w,"?").replace(",","") for w in want]))
 PY
 echo "===END-NCU-SUMMARY==="

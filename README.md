@@ -59,7 +59,24 @@ What the numbers say:
 - **Vectorizing** the global loads and stores buys the last 5 to 13 percent by cutting load instruction count and L1 wavefronts.
 - **Against cuBLAS: 76 to 83 percent** at 1024 and 4096. The gap at 2048 (66 percent) is where cuBLAS's own kernel peaks (5.3 TFLOP/s), suggesting its tile shape and software pipelining suit that size better than the fixed 128x128x8 tile here. Closing that is the obvious next step: double-buffered smem loads to overlap global fetch with compute.
 
-Per-stage Nsight Compute metrics are in `results/ncu/` (see `scripts/profile.sh`); the summary table lands here after the profile run.
+### Nsight Compute, 2048 x 2048 x 2048
+
+| stage | SM throughput % | DRAM throughput % | achieved occupancy % | regs / thread | static smem | L2 bytes | long-scoreboard stall | MIO-throttle stall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 naive | 11.8 | 3.5 | 99.5 | 52 | 0 | 4.40 GB | 25,028 | 12 |
+| 1 coalesced | 80.4 | 35.5 | 99.6 | 52 | 0 | 5.49 GB | 19,481 | 130 |
+| 2 smem tiled | 75.3 | 12.4 | 100.0 | 42 | 8 KB | 2.16 GB | 19,018 | 152,138 |
+| 3 reg tiled | 52.2 | 6.6 | 47.1 | 120 | 8 KB | 0.66 GB | 254,904 | 403,215 |
+| 4 vectorized | 54.3 | 6.4 | 25.0 | 143 | 8 KB | 0.57 GB | 176,441 | 29,074 |
+
+Raw per-stage CSVs are in `results/ncu/`. Reading the table against the timings:
+
+- **Stage 0 is latency-bound, not bandwidth-bound.** DRAM sits at 3.5 percent and the SM is 12 percent busy; the warps are parked on long-scoreboard stalls waiting for uncoalesced loads to return. Full occupancy buys nothing because every warp is waiting on the same thing.
+- **Stage 1's "80 percent SM throughput" is the load/store unit, not the FMA pipe.** `sm__throughput` reports the busiest sub-unit. Coalescing made the LSU the bottleneck at 10x the GFLOP/s, with DRAM now at 35 percent. The kernel is issue-bound on loads.
+- **Stage 2 cuts L2 traffic 2.5x and moves the stall to MIO throttle.** That is shared memory saying it cannot serve two smem loads per FMA fast enough. The fix is more math per load, not more occupancy.
+- **Stage 3 trades occupancy for intensity on purpose.** Registers per thread go 42 to 120, occupancy halves to 47 percent, L2 bytes fall another 3.3x, and GFLOP/s rises 3.6x. The remaining MIO stalls are the scalar smem reads feeding the 8x8 micro-tile.
+- **Stage 4's float4 loads collapse the MIO stall 14x** (403k to 29k) while occupancy drops to 25 percent at 143 registers. The SM is now 54 percent busy on the FMA pipe with DRAM at 6 percent: the kernel is compute-issue-bound at low occupancy, which is exactly where software pipelining (double-buffered smem) would pay off next.
+
 
 ## Run it
 
@@ -90,4 +107,4 @@ python3 scripts/plot.py
 
 ## Status
 
-Compiles clean against CUDA 12.4 in CI (see `.github/workflows/build.yml`). Benchmarked on a Tesla T4; results above are from that run and nothing is estimated. Nsight Compute profile per stage: in progress.
+Compiles clean against CUDA 12.4 in CI (see `.github/workflows/build.yml`). Benchmarked and profiled on a Tesla T4 (Colab, 2026-10-12). Every number above is from that run; nothing is estimated.
