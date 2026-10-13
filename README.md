@@ -46,4 +46,4 @@ python3 scripts/plot.py
 
 ## Status
 
-Scaffolded and compiles against the CUDA 12 toolchain in CI (see `.github/workflows/build.yml`). First GPU run pending; results section will be filled from that run only, never estimated.
+Compiles clean against CUDA 12.4 in CI (see `.github/workflows/build.yml`, nvcc for sm_80). First GPU run pending; the results section will be filled from that run only, never estimated.
